@@ -42,6 +42,7 @@ async def persistent_launch_async(
         playwright: Playwright,
         headless=False,
         args=None,
+        viewport=None,
         user_data_dir: str = "",
         record_video_dir="video",
 ):
@@ -50,7 +51,7 @@ async def persistent_launch_async(
         headless=headless,
         args=args,
         ignore_default_args=None,
-        viewport={"width": 1280, "height": 720},
+        viewport=viewport,
         record_video_dir=record_video_dir,
         executable_path="/usr/bin/google-chrome",
     )
@@ -83,7 +84,6 @@ async def normal_new_context_async(
     if tracing:
         await context.tracing.start(screenshots=trace_screenshots, snapshots=trace_snapshots, sources=trace_sources)
     return context
-
 
 
 def persistent_launch(playwright: Playwright, viewport: dict, user_data_dir: str = ""):

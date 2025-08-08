@@ -325,9 +325,10 @@ ELEMENT: The uppercase letter of your choice.''',
 
     async def start(
             self,
-            headless=None,
+            headless=False,
             args=None,
             website=None,
+            viewport=None,
             user_data_dir: str = '',
     ):
         self.playwright = await async_playwright().start()
@@ -342,9 +343,14 @@ ELEMENT: The uppercase letter of your choice.''',
         #                                                                  viewport=self.config['browser'][
         #                                                                      'viewport'])
 
+        if viewport is not None:
+            self.config['browser']['viewport'] = viewport
+
         self.session_control['context'] = await persistent_launch_async(
             self.playwright,
-            # viewport=self.config['browser']['viewport'])
+            headless=headless,
+            args=args,
+            viewport=viewport,
             user_data_dir=user_data_dir,
         )
 
