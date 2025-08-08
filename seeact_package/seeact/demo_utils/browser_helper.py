@@ -22,16 +22,39 @@ from pathlib import Path
 import toml
 import os
 
-async def normal_launch_async(playwright: Playwright,headless=False,args=None):
+
+async def normal_launch_async(playwright: Playwright, headless=False, args=None):
     browser = await playwright.chromium.launch(
-        traces_dir=None,
-        headless=False,
-        args=args,
+        # traces_dir=None,
+        # headless=False,
+        # args=args,
         # ignore_default_args=ignore_args,
         # chromium_sandbox=False,
+        executable_path="/usr/bin/google-chrome",
+        headless=False,
+        args=args,
+
     )
     return browser
 
+
+async def persistent_launch_async(
+        playwright: Playwright,
+        headless=False,
+        args=None,
+        user_data_dir: str = "",
+        record_video_dir="video",
+):
+    context = await playwright.chromium.launch_persistent_context(
+        user_data_dir=user_data_dir,
+        headless=headless,
+        args=args,
+        ignore_default_args=None,
+        viewport={"width": 1280, "height": 720},
+        record_video_dir=record_video_dir,
+        executable_path="/usr/bin/google-chrome",
+    )
+    return context
 
 
 async def normal_new_context_async(
@@ -50,7 +73,6 @@ async def normal_new_context_async(
 ):
     context = await browser.new_context(
         storage_state=storage_state,
-        user_agent=user_agent,
         viewport=viewport,
         locale=locale,
         record_har_path=har_path,
@@ -62,42 +84,25 @@ async def normal_new_context_async(
         await context.tracing.start(screenshots=trace_screenshots, snapshots=trace_snapshots, sources=trace_sources)
     return context
 
-#
-# def persistent_launch(playwright: Playwright, user_data_dir: str = ""):
-#     context = playwright.chromium.launch_persistent_context(
-#         user_data_dir=user_data_dir,
-#         headless=False,
-#         args=["--no-default-browser-check",
-#               "--no_sandbox",
-#               "--disable-blink-features=AutomationControlled",
-#               ],
-#         ignore_default_args=ignore_args,
-#         user_agent="Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36",
-#         viewport={"width": 1280, "height": 720},
-#         bypass_csp=True,
-#         slow_mo=1000,
-#         chromium_sandbox=True,
-#         channel="chrome-dev"
-#     )
-#     return context
 
-#
-# async def persistent_launch_async(playwright: Playwright, user_data_dir: str = "", record_video_dir="video"):
-#     context = await playwright.chromium.launch_persistent_context(
-#         user_data_dir=user_data_dir,
-#         headless=False,
-#         args=[
-#             "--disable-blink-features=AutomationControlled",
-#         ],
-#         ignore_default_args=ignore_args,
-#         user_agent="Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36",
-#         # viewport={"width": 1280, "height": 720},
-#         record_video_dir=record_video_dir,
-#         channel="chrome-dev"
-#         # slow_mo=1000,
-#     )
-#     return context
 
+def persistent_launch(playwright: Playwright, viewport: dict, user_data_dir: str = ""):
+    context = playwright.chromium.launch_persistent_context(
+        user_data_dir=user_data_dir,
+        headless=False,
+        args=["--no-default-browser-check",
+              "--no_sandbox",
+              "--disable-blink-features=AutomationControlled",
+              ],
+        ignore_default_args=ignore_args,
+        user_agent="Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36",
+        viewport={"width": 1280, "height": 720},
+        bypass_csp=True,
+        slow_mo=1000,
+        chromium_sandbox=True,
+        channel="chrome-dev"
+    )
+    return context
 
 
 def remove_extra_eol(text):
@@ -113,6 +118,7 @@ def get_first_line(s):
         return ' '.join(tokens[:8]) + '...'
     else:
         return first_line
+
 
 async def get_element_description(element, tag_name, role_value, type_value):
     '''
@@ -172,8 +178,7 @@ async def get_element_description(element, tag_name, role_value, type_value):
                 if not text4:
                     text4 = await element.inner_text(timeout=0)
 
-
-            return parent_value+text1 + remove_extra_eol(text2.strip()) + text3 + text4
+            return parent_value + text1 + remove_extra_eol(text2.strip()) + text3 + text4
 
     input_value = ""
 
@@ -211,12 +216,11 @@ async def get_element_description(element, tag_name, role_value, type_value):
     if text:
         return input_value + remove_extra_eol(text.strip())
 
-
     # try to get from the first child node
     first_child_locator = element.locator('xpath=./child::*[1]')
 
     num_childs = await first_child_locator.count()
-    if num_childs>0:
+    if num_childs > 0:
         for attr in salient_attributes:
             attribute_value = await first_child_locator.get_attribute(attr, timeout=0)
             if attribute_value:
@@ -229,22 +233,19 @@ async def get_element_description(element, tag_name, role_value, type_value):
     return None
 
 
-async def get_element_data(element, tag_name,viewport_size,seen_elements=[]):
+async def get_element_data(element, tag_name, viewport_size, seen_elements=[]):
     try:
         tag_name_list = ['a', 'button',
                          'input',
                          'select', 'textarea', 'adc-tab']
 
-
         if await element.is_hidden(timeout=0) or await element.is_disabled(timeout=0):
             return None
 
-
-
         rect = await element.bounding_box() or {'x': -1, 'y': -1, 'width': 0, 'height': 0}
 
-
-        if rect['x']<0 or rect['y']<0 or rect['width']<=4 or rect['height']<=4 or rect['y']+rect['height']>viewport_size["height"] or rect['x']+ rect['width']>viewport_size["width"]:
+        if rect['x'] < 0 or rect['y'] < 0 or rect['width'] <= 4 or rect['height'] <= 4 or rect['y'] + rect['height'] > \
+                viewport_size["height"] or rect['x'] + rect['width'] > viewport_size["width"]:
             return None
 
         box_raw = [rect['x'], rect['y'], rect['width'], rect['height']]
@@ -268,7 +269,8 @@ async def get_element_data(element, tag_name,viewport_size,seen_elements=[]):
             else:
                 tag_head = real_tag_name
 
-        text_element = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'td', "div","em","center","strong","b","i","small","mark","abbr","cite","q","blockquote","span","nobr"]
+        text_element = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'td', "div", "em", "center", "strong", "b", "i",
+                        "small", "mark", "abbr", "cite", "q", "blockquote", "span", "nobr"]
 
         if real_tag_name in text_element:
             return None
@@ -296,13 +298,13 @@ async def get_element_data(element, tag_name,viewport_size,seen_elements=[]):
                      '''
         selector = element
         return {
-            "center_point":center_point,
-            "description":description,
-            "tag_with_role":tag_head,
-            "box_raw":box_raw,
-            "box":box_model,
-            "selector":selector,
-            "tag":real_tag_name
+            "center_point": center_point,
+            "description": description,
+            "tag_with_role": tag_head,
+            "box_raw": box_raw,
+            "box": box_model,
+            "selector": selector,
+            "tag": real_tag_name
         }
         # return [center_point, description, tag_head, box_model, selector, real_tag_name]
     except Exception as e:
@@ -310,7 +312,7 @@ async def get_element_data(element, tag_name,viewport_size,seen_elements=[]):
         return None
 
 
-async def get_interactive_elements_with_playwright(page,viewport_size):
+async def get_interactive_elements_with_playwright(page, viewport_size):
     interactive_elements_selectors = [
         'a', 'button',
         'input',
@@ -320,14 +322,13 @@ async def get_interactive_elements_with_playwright(page,viewport_size):
     seen_elements = set()
     tasks = []
 
-
     for selector in interactive_elements_selectors:
         locator = page.locator(selector)
         element_count = await locator.count()
         for index in range(element_count):
             element = locator.nth(index)
             tag_name = selector
-            task = get_element_data(element, tag_name,viewport_size)
+            task = get_element_data(element, tag_name, viewport_size)
 
             tasks.append(task)
 
@@ -353,12 +354,11 @@ async def get_interactive_elements_with_playwright(page,viewport_size):
         for index in range(element_count):
             element = locator.nth(index)
             tag_name = selector
-            task = get_element_data(element, tag_name, viewport_size,seen_elements)
+            task = get_element_data(element, tag_name, viewport_size, seen_elements)
 
             tasks.append(task)
 
     results = await asyncio.gather(*tasks)
-
 
     for i in results:
         if i:
@@ -387,7 +387,6 @@ def saveconfig(config, save_file):
     config is a dictionary.
     save_path: saving path include file name.
     """
-
 
     if isinstance(save_file, str):
         save_file = Path(save_file)
