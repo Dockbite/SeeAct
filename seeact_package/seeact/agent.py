@@ -27,7 +27,8 @@ import asyncio
 from .data_utils.format_prompt_utils import get_index_from_option_name, generate_new_query_prompt, \
     generate_new_referring_prompt, format_options, generate_option_name
 from .demo_utils.browser_helper import (normal_new_context_async, \
-    get_interactive_elements_with_playwright, select_option, saveconfig, persistent_launch_async,
+                                        get_interactive_elements_with_playwright, select_option, saveconfig,
+                                        persistent_launch_async,
                                         normal_launch_async, )
 from .demo_utils.format_prompt import format_choices, postprocess_action_lmm
 from .demo_utils.inference_engine import engine_factory
@@ -322,7 +323,13 @@ ELEMENT: The uppercase letter of your choice.''',
         except Exception as e:
             pass
 
-    async def start(self, headless=None, args=None, website=None):
+    async def start(
+            self,
+            headless=None,
+            args=None,
+            website=None,
+            user_data_dir: str = '',
+    ):
         self.playwright = await async_playwright().start()
 
         # self.session_control['browser'] = await normal_launch_async(
@@ -338,7 +345,7 @@ ELEMENT: The uppercase letter of your choice.''',
         self.session_control['context'] = await persistent_launch_async(
             self.playwright,
             # viewport=self.config['browser']['viewport'])
-            user_data_dir='/home/joris/.config/google-chrome/Default',
+            user_data_dir=user_data_dir,
         )
 
         self.session_control['context'].on("page", self.page_on_open_handler)
